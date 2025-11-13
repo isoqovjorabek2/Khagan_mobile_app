@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'pages/home_page.dart';
+import 'package:helloworld/pages/Auth/StartPage.dart';
+import 'package:helloworld/pages/Cart/CartPage.dart';
 
 void main() => runApp(const MyApp());
 
@@ -14,7 +15,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.red,
       ),
-      home: const home_page(title: "Khagan"),
+      home: CartPage(),
     );
   }
 }
