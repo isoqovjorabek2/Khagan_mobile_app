@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:helloworld/pages/Home/HomePage.dart';
+import '../../services/product_service.dart';
+import '../../models/product.dart';
+import '../../models/product_category.dart';
+import 'ProductDetailsPage.dart';
 
 class CategoryPage extends StatefulWidget {
   const CategoryPage({super.key});
@@ -9,182 +13,226 @@ class CategoryPage extends StatefulWidget {
 }
 
 class _CategoryPageState extends State<CategoryPage> {
-  String selectedCategory = "Men";
+  final ProductService _productService = ProductService();
+  List<Product> _products = [];
+  List<ProductCategory> _categories = [];
+  ProductCategory? _selectedCategory;
+  bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _defaultProducts = [
-    {
-      "name": "Stone Gray T-Shirt",
-      "price": "\$15.89",
-      "image": "https://via.placeholder.com/300x400?text=Stone+Gray+T-Shirt",
-    },
-    {
-      "name": "Slate-Hued T-Shirt",
-      "price": "\$15.89",
-      "image": "https://via.placeholder.com/300x400?text=Slate+Hued+T-Shirt",
-    },
-    {
-      "name": "Philip's Top Tee",
-      "price": "\$25.03",
-      "image": "https://via.placeholder.com/300x400?text=Philip+Top+Tee",
-    },
-    {
-      "name": "Slate T-Shirt",
-      "price": "\$17.89",
-      "image": "https://via.placeholder.com/300x400?text=Slate+T-Shirt",
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  final List<Map<String, dynamic>> _emptyProducts = [];
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final categories = await _productService.getCategories();
+      final products = await _productService.getProducts();
+      setState(() {
+        _categories = categories;
+        _products = products;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _filterByCategory(ProductCategory? category) async {
+    setState(() {
+      _selectedCategory = category;
+      _isLoading = true;
+    });
+    try {
+      final products = await _productService.getProducts(
+        categoryId: category?.id,
+      );
+      setState(() {
+        _products = products;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error filtering: $e')),
+        );
+      }
+    }
+  }
+
+  void _searchProducts(String query) async {
+    if (query.isEmpty) {
+      _filterByCategory(_selectedCategory);
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final products = await _productService.getProducts(
+        search: query,
+        categoryId: _selectedCategory?.id,
+      );
+      setState(() {
+        _products = products;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error searching: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bool hasProducts =
-        selectedCategory == "Men" ? _defaultProducts.isNotEmpty : false;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // AppBar Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: Colors.black),
-                    onPressed: () {
-                      // ✅ Go back to HomePage instead of just popping
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomePage()),
-                      );
-                    },
-                  ),
-                  const Text(
-                    "Category",
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black),
-                  ),
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.black12,
-                    child: Icon(Icons.person, color: Colors.black),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Category chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildCategoryChip("All"),
-                    _buildCategoryChip("Women"),
-                    _buildCategoryChip("Men"),
-                    _buildCategoryChip("Children"),
-                    _buildCategoryChip("Kids"),
+                    // AppBar Section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                              color: Colors.black),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Text(
+                          "Category",
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black),
+                        ),
+                        const CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.black12,
+                          child: Icon(Icons.person, color: Colors.black),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Category chips
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildCategoryChip(null, "All"),
+                          ..._categories.map((cat) => _buildCategoryChip(cat, cat.name)),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Search bar
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: _searchProducts,
+                              decoration: const InputDecoration(
+                                hintText: "Search",
+                                prefixIcon: Icon(Icons.search, color: Colors.black54),
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          height: 50,
+                          width: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.filter_list, color: Colors.black),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Title row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _selectedCategory == null
+                              ? "All Products"
+                              : _selectedCategory!.name,
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black),
+                        ),
+                        Text(
+                          "${_products.length} items",
+                          style: const TextStyle(color: Colors.orangeAccent),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Product Grid OR Empty Placeholder
+                    _products.isEmpty
+                        ? _buildEmptyState()
+                        : GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _products.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.72,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                            ),
+                            itemBuilder: (context, index) {
+                              final product = _products[index];
+                              return _buildProductCard(product);
+                            },
+                          ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              // Search bar
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const TextField(
-                        decoration: InputDecoration(
-                          hintText: "Search",
-                          prefixIcon: Icon(Icons.search, color: Colors.black54),
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    height: 50,
-                    width: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.filter_list, color: Colors.black),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Title row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text(
-                    "New For Men",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black),
-                  ),
-                  Text(
-                    "See all",
-                    style: TextStyle(color: Colors.orangeAccent),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Product Grid OR Empty Placeholder
-              if (hasProducts)
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _defaultProducts.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.72,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                  ),
-                  itemBuilder: (context, index) {
-                    final product = _defaultProducts[index];
-                    return _buildProductCard(product);
-                  },
-                )
-              else
-                _buildEmptyState(),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildCategoryChip(String label) {
-    final bool selected = label == selectedCategory;
+  Widget _buildCategoryChip(ProductCategory? category, String label) {
+    final bool selected = _selectedCategory?.id == category?.id;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedCategory = label;
-        });
-      },
+      onTap: () => _filterByCategory(category),
       child: Container(
         margin: const EdgeInsets.only(right: 10),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -203,61 +251,84 @@ class _CategoryPageState extends State<CategoryPage> {
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> product) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Image.network(
-              product['image'],
-              height: 160,
-              width: double.infinity,
-              fit: BoxFit.cover,
+  Widget _buildProductCard(Product product) {
+    return GestureDetector(
+      onTap: () {
+        if (product.id != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductDetailsPage(productId: product.id!),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(product['name'],
+          );
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: product.image != null
+                  ? Image.network(
+                      product.image!,
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                            height: 160,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.image),
+                          ),
+                    )
+                  : Container(
+                      height: 160,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(product.title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15)),
+                  const SizedBox(height: 4),
+                  Text(
+                    product.price != null ? '\$${product.price}' : '\$0.00',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 15)),
-                const SizedBox(height: 4),
-                Text(
-                  product['price'],
-                  style: const TextStyle(
-                    color: Colors.orangeAccent,
-                    fontWeight: FontWeight.bold,
+                      color: Colors.orangeAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Icon(Icons.favorite_border,
-                        size: 20, color: Colors.grey[700]),
-                    Icon(Icons.shopping_bag_outlined,
-                        size: 20, color: Colors.black),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Icon(Icons.favorite_border,
+                          size: 20, color: Colors.grey[700]),
+                      Icon(Icons.shopping_bag_outlined,
+                          size: 20, color: Colors.black),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

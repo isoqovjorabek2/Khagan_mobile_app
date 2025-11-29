@@ -1,16 +1,76 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../services/product_service.dart';
+import '../../services/cart_service.dart';
+import '../../models/product.dart';
 
 class ProductDetailsPage extends StatefulWidget {
-  const ProductDetailsPage({super.key});
+  final int? productId;
+
+  const ProductDetailsPage({super.key, this.productId});
 
   @override
   State<ProductDetailsPage> createState() => _ProductDetailsPageState();
 }
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
+  final ProductService _productService = ProductService();
+  final CartService _cartService = CartService();
+  Product? _product;
+  bool _isLoading = true;
+  bool _isAddingToCart = false;
   String selectedColor = "green";
   String selectedSize = "M";
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.productId != null) {
+      _loadProduct();
+    }
+  }
+
+  Future<void> _loadProduct() async {
+    setState(() => _isLoading = true);
+    try {
+      final product = await _productService.getProductById(widget.productId!);
+      setState(() {
+        _product = product;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading product: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _addToCart() async {
+    if (_product?.id == null) return;
+
+    setState(() => _isAddingToCart = true);
+    try {
+      await _cartService.addProductToCart(_product!.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product added to cart!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding to cart: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingToCart = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +80,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         leading: IconButton(
           icon:
               const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-          onPressed: () {},
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "Product Details",
@@ -36,82 +96,79 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Product Image
-              Center(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        "https://images.unsplash.com/photo-1618354691438-25bc8c0913be?auto=format&fit=crop&w=800&q=80",
-                        width: double.infinity,
-                        height: 300,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Positioned(
-                      right: 16,
-                      bottom: 16,
-                      child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(6.0),
-                          child: Image.network(
-                            "https://images.unsplash.com/photo-1618354691438-25bc8c0913be?auto=format&fit=crop&w=200&q=60",
-                            fit: BoxFit.cover,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _product == null
+              ? const Center(child: Text('Product not found'))
+              : SafeArea(
+                  child: SingleChildScrollView(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Product Image
+                        Center(
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: _product!.image != null
+                                    ? Image.network(
+                                        _product!.image!,
+                                        width: double.infinity,
+                                        height: 300,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                          height: 300,
+                                          color: Colors.grey[300],
+                                          child: const Icon(Icons.image,
+                                              size: 50),
+                                        ),
+                                      )
+                                    : Container(
+                                        height: 300,
+                                        color: Colors.grey[300],
+                                        child: const Icon(Icons.image, size: 50),
+                                      ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-              const Text(
-                "Philip's Top Tee  T-Shirt",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                "\$25.03",
-                style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 16),
-              ),
-              const SizedBox(height: 10),
+                        Text(
+                          _product!.title,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _product!.price != null
+                              ? '\$${_product!.price}'
+                              : r'$0.00',
+                          style: const TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16),
+                        ),
+                        const SizedBox(height: 10),
 
-              const Text(
-                "Description",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                "Philip’s Top Tee T-Shirt: Crafted for comfort and designed to enhance your look. This exquisite piece effortlessly blends fashion and functionality. It’s suitable for various occasions.",
-                style: TextStyle(color: Colors.grey),
-              ),
+                        const Text(
+                          "Description",
+                          style:
+                              TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _product!.description,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
               const SizedBox(height: 20),
 
               Row(
@@ -134,37 +191,50 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Total Price",
-                          style: TextStyle(color: Colors.white54),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Total Price",
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                            Text(
+                              _product!.price != null
+                                  ? '\$${_product!.price}'
+                                  : '\$0.00',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18),
+                            ),
+                          ],
                         ),
-                        Text(
-                          "\$132",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18),
+                        ElevatedButton(
+                          onPressed: _isAddingToCart ? null : _addToCart,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDBFF00),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 40, vertical: 14),
+                          ),
+                          child: _isAddingToCart
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.black),
+                                  ),
+                                )
+                              : const Text(
+                                  "Add to Cart",
+                                  style:
+                                      TextStyle(color: Colors.black, fontSize: 16),
+                                ),
                         ),
-                      ],
-                    ),
-                    ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDBFF00),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 40, vertical: 14),
-                      ),
-                      child: const Text(
-                        "Add to Cart",
-                        style: TextStyle(color: Colors.black, fontSize: 16),
-                      ),
-                    ),
                   ],
                 ),
               ),
