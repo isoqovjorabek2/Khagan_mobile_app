@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8080
+    ports:
+      - "8080:8080"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+    volumes:
+      - .:/app
+      - /var/www/khagan/static:/app/static
+      - /var/www/khagan/media:/app/media
+    restart: unless-stopped
