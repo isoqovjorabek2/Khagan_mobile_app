@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'SignInPage.dart';
 import '../../services/auth_service.dart';
-import '../Home/HomePage.dart';
+import '../MainNavigation.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -294,8 +294,9 @@ class _SignUpPageState extends State<SignUpPage> {
         _passwordController.text,
       );
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomePage()),
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          (route) => false,
         );
       }
     } catch (e) {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:helloworld/pages/Home/HomePage.dart';
+import 'package:helloworld/pages/MainNavigation.dart';
 import '../../services/auth_service.dart';
 
 class SignInPage extends StatefulWidget {
@@ -196,8 +196,9 @@ class _SignInPageState extends State<SignInPage> {
         passwordController.text,
       );
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomePage()),
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          (route) => false,
         );
       }
     } catch (e) {

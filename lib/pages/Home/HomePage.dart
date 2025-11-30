@@ -72,7 +72,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      bottomNavigationBar: const CustomBottomNav(),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -475,46 +474,3 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// --- Custom Bottom Nav ---
-class CustomBottomNav extends StatelessWidget {
-  const CustomBottomNav({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 70,
-      decoration: const BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _NavItem(icon: LucideIcons.house, selected: true),
-          _NavItem(icon: LucideIcons.shoppingBag),
-          _NavItem(icon: LucideIcons.heart),
-          _NavItem(icon: LucideIcons.user),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final bool selected;
-
-  const _NavItem({required this.icon, this.selected = false, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      icon,
-      size: 26,
-      color: selected ? Colors.yellowAccent : Colors.white,
-    );
-  }
-}
