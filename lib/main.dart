@@ -5,6 +5,7 @@ import 'package:helloworld/pages/Auth/SignInPage.dart';
 import 'package:helloworld/pages/Auth/SignUpPage.dart';
 import 'package:helloworld/pages/MainNavigation.dart';
 import 'package:helloworld/pages/Cart/CartPage.dart';
+import 'package:helloworld/pages/Test/BackendTestPage.dart';
 import 'package:helloworld/services/auth_service.dart';
 
 void main() => runApp(const MyApp());
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignUpPage(),
         '/home': (context) => const MainNavigation(),
         '/cart': (context) => const CartPage(),
+        '/test': (context) => const BackendTestPage(),
       },
     );
   }

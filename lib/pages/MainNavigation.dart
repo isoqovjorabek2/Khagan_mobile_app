@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'Home/HomePage.dart';
 import 'Cart/CartPage.dart';
+import 'Test/BackendTestPage.dart';
 import '../services/auth_service.dart';
 import 'Auth/StartPage.dart';
 
@@ -156,19 +157,35 @@ class _ProfilePage extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
+            const CircleAvatar(
               radius: 50,
               backgroundColor: Colors.grey,
               child: Icon(Icons.person, size: 50, color: Colors.white),
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Profile',
               style: TextStyle(fontSize: 18, color: Colors.black),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BackendTestPage()),
+                );
+              },
+              icon: const Icon(Icons.bug_report),
+              label: const Text('Test Backend'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
             ),
           ],
         ),
