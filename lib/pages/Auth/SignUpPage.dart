@@ -301,8 +301,22 @@ class _SignUpPageState extends State<SignUpPage> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+        // Clean up error message for better display
+        errorMessage = errorMessage.replaceAll('Exception: ', '');
+        if (errorMessage.startsWith('Sign up failed: ')) {
+          errorMessage = errorMessage.replaceAll('Sign up failed: ', '');
+        }
+        if (errorMessage.startsWith('Account creation error: ')) {
+          errorMessage = errorMessage.replaceAll('Account creation error: ', '');
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign up failed: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     } finally {

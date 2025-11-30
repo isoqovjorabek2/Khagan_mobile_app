@@ -60,12 +60,28 @@ class ApiClient {
       uri = uri.replace(queryParameters: queryParams);
     }
 
-    final response = await http.get(
-      uri,
-      headers: _getHeaders(requiresAuth: requiresAuth),
-    );
+    try {
+      final response = await http
+          .get(
+            uri,
+            headers: _getHeaders(requiresAuth: requiresAuth),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception('Request timeout: The server took too long to respond');
+            },
+          );
 
-    return response;
+      return response;
+    } on http.ClientException catch (e) {
+      throw Exception('Network error: Unable to connect to server. Please check your internet connection. ${e.message}');
+    } catch (e) {
+      if (e.toString().contains('timeout')) {
+        throw Exception('Request timeout: The server took too long to respond. Please try again.');
+      }
+      throw Exception('Request failed: ${e.toString()}');
+    }
   }
 
   Future<http.Response> post(
@@ -77,13 +93,29 @@ class ApiClient {
       await getToken();
     }
 
-    final response = await http.post(
-      Uri.parse('${ApiConfig.apiBaseUrl}$endpoint'),
-      headers: _getHeaders(requiresAuth: requiresAuth),
-      body: body != null ? jsonEncode(body) : null,
-    );
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.apiBaseUrl}$endpoint'),
+            headers: _getHeaders(requiresAuth: requiresAuth),
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception('Request timeout: The server took too long to respond');
+            },
+          );
 
-    return response;
+      return response;
+    } on http.ClientException catch (e) {
+      throw Exception('Network error: Unable to connect to server. Please check your internet connection. ${e.message}');
+    } catch (e) {
+      if (e.toString().contains('timeout')) {
+        throw Exception('Request timeout: The server took too long to respond. Please try again.');
+      }
+      throw Exception('Request failed: ${e.toString()}');
+    }
   }
 
   Future<http.Response> delete(

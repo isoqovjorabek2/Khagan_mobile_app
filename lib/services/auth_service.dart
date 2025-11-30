@@ -24,10 +24,36 @@ class AuthService {
         
         return authResponse;
       } else {
-        throw Exception('Login failed: ${response.body}');
+        // Try to parse error message from response
+        String errorMessage = 'Login failed';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData is Map<String, dynamic>) {
+            if (errorData.containsKey('message')) {
+              errorMessage = errorData['message'].toString();
+            } else if (errorData.containsKey('error')) {
+              errorMessage = errorData['error'].toString();
+            } else if (errorData.containsKey('detail')) {
+              errorMessage = errorData['detail'].toString();
+            } else {
+              errorMessage = response.body;
+            }
+          }
+        } catch (_) {
+          errorMessage = response.body.isNotEmpty 
+              ? response.body 
+              : 'Login failed with status ${response.statusCode}';
+        }
+        throw Exception(errorMessage);
       }
     } catch (e) {
-      throw Exception('Login error: $e');
+      // Re-throw if it's already a formatted exception
+      if (e.toString().contains('Network error') || 
+          e.toString().contains('timeout') ||
+          e.toString().contains('Unable to connect')) {
+        rethrow;
+      }
+      throw Exception('Login error: ${e.toString().replaceAll('Exception: ', '')}');
     }
   }
 
@@ -59,10 +85,38 @@ class AuthService {
         
         return authResponse;
       } else {
-        throw Exception('Account creation failed: ${response.body}');
+        // Try to parse error message from response
+        String errorMessage = 'Account creation failed';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData is Map<String, dynamic>) {
+            if (errorData.containsKey('message')) {
+              errorMessage = errorData['message'].toString();
+            } else if (errorData.containsKey('error')) {
+              errorMessage = errorData['error'].toString();
+            } else if (errorData.containsKey('detail')) {
+              errorMessage = errorData['detail'].toString();
+            } else if (errorData.containsKey('email')) {
+              errorMessage = errorData['email'].toString();
+            } else {
+              errorMessage = response.body;
+            }
+          }
+        } catch (_) {
+          errorMessage = response.body.isNotEmpty 
+              ? response.body 
+              : 'Account creation failed with status ${response.statusCode}';
+        }
+        throw Exception(errorMessage);
       }
     } catch (e) {
-      throw Exception('Account creation error: $e');
+      // Re-throw if it's already a formatted exception
+      if (e.toString().contains('Network error') || 
+          e.toString().contains('timeout') ||
+          e.toString().contains('Unable to connect')) {
+        rethrow;
+      }
+      throw Exception('Account creation error: ${e.toString().replaceAll('Exception: ', '')}');
     }
   }
 
