@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' if (dart.library.html) 'dart:html' as io;
 import '../config/api_config.dart';
+import '../utils/platform_file.dart';
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
@@ -186,22 +187,29 @@ class ApiClient {
         request.fields.addAll(fields);
       }
 
-      // Add file fields (only on non-web platforms)
+      // Add file fields (only on non-web platforms where dart:io File is available)
       if (files != null && !kIsWeb) {
         for (var entry in files.entries) {
-          final file = entry.value as io.File;
-          if (await file.exists()) {
-            final fileStream = http.ByteStream(file.openRead());
-            final fileLength = await file.length();
-            final fileName = file.path.split('/').last;
-            
-            final multipartFile = http.MultipartFile(
-              entry.key,
-              fileStream,
-              fileLength,
-              filename: fileName,
-            );
-            request.files.add(multipartFile);
+          try {
+            final file = entry.value;
+            if (PlatformFileHelper.canProcessFile(file)) {
+              if (await PlatformFileHelper.fileExists(file)) {
+                final fileStream = await PlatformFileHelper.getFileStream(file);
+                final fileLength = await PlatformFileHelper.getFileLength(file);
+                final fileName = PlatformFileHelper.getFileName(file);
+                
+                final multipartFile = http.MultipartFile(
+                  entry.key,
+                  fileStream,
+                  fileLength,
+                  filename: fileName,
+                );
+                request.files.add(multipartFile);
+              }
+            }
+          } catch (e) {
+            // Skip files that can't be processed (expected on web)
+            continue;
           }
         }
       }

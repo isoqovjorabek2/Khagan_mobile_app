@@ -91,7 +91,7 @@ class AuthService {
       final response = await _apiClient.postMultipart(
         ApiConfig.createAccountEndpoint,
         fields: fields,
-        files: files.isNotEmpty ? files : null,
+        files: files != null && files.isNotEmpty ? files : null,
         fileFieldName: profileImage != null ? 'profile_image' : null,
       );
 

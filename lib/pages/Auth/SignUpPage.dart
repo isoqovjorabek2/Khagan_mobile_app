@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart' show FileImage;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' if (dart.library.html) 'dart:html' as io;
 import 'SignInPage.dart';
@@ -76,10 +77,8 @@ class _SignUpPageState extends State<SignUpPage> {
                         CircleAvatar(
                           radius: 50,
                           backgroundColor: Colors.grey.shade200,
-                          backgroundImage: _profileImage != null && !kIsWeb
-                              ? io.FileImage(_profileImage as io.File)
-                              : null,
-                          child: _profileImage == null
+                          backgroundImage: _getProfileImageProvider(),
+                          child: _getProfileImageProvider() == null
                               ? const Icon(
                                   Icons.person,
                                   size: 50,
@@ -370,6 +369,28 @@ class _SignUpPageState extends State<SignUpPage> {
         ),
       ),
     );
+  }
+
+  ImageProvider? _getProfileImageProvider() {
+    if (kIsWeb || _profileImage == null) {
+      return null;
+    }
+    // On non-web platforms, io.File is dart:io File which FileImage can use
+    // We need to ensure we're not on web before using FileImage
+    if (!kIsWeb && _profileImage != null) {
+      try {
+        // Cast to the appropriate type for FileImage
+        // On non-web, io.File is actually dart:io File
+        final file = _profileImage;
+        if (file != null) {
+          return FileImage(file as dynamic);
+        }
+      } catch (e) {
+        // If FileImage fails, return null to show placeholder
+        return null;
+      }
+    }
+    return null;
   }
 
   Future<void> _pickProfileImage() async {
