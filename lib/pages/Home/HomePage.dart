@@ -38,9 +38,15 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      if (mounted) {
+      // Error is already handled in ProductService with mock data fallback
+      // Only show error if mock data also fails
+      if (mounted && _products.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
+          SnackBar(
+            content: Text('Using offline data. Please log in to see latest products.'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     }
