@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' if (dart.library.html) 'dart:html' as io;
 import 'SignInPage.dart';
 import '../../services/auth_service.dart';
 import '../MainNavigation.dart';
@@ -11,6 +13,8 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _rePasswordController = TextEditingController();
@@ -18,6 +22,7 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _obscurePassword = true;
   bool _obscureRePassword = true;
   bool _isLoading = false;
+  dynamic _profileImage; // File on mobile, can be null on web
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +66,105 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
+
+                // Profile Image (Optional)
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickProfileImage,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.grey.shade200,
+                          backgroundImage: _profileImage != null && !kIsWeb
+                              ? io.FileImage(_profileImage as io.File)
+                              : null,
+                          child: _profileImage == null
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.grey,
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Center(
+                  child: Text(
+                    'Tap to add profile image (Optional)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // First Name field
+                const Text(
+                  "First Name",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _firstNameController,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.person_outline),
+                    hintText: "First Name",
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Last Name field
+                const Text(
+                  "Last Name",
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _lastNameController,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.person_outline),
+                    hintText: "Last Name",
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // Email field
                 const Text(
@@ -268,6 +372,19 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
+  Future<void> _pickProfileImage() async {
+    // For web/mobile, this would use image_picker package
+    // For now, we'll make it optional and handle it gracefully
+    // In a real implementation, you'd use: final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+    // For this implementation, we'll skip the actual file picker and just show the UI
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Profile image upload will be available in full implementation'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _handleSignUp() async {
     FocusScope.of(context).unfocus();
 
@@ -275,7 +392,7 @@ class _SignUpPageState extends State<SignUpPage> {
         _passwordController.text.isEmpty ||
         _rePasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(content: Text('Please fill in all required fields')),
       );
       return;
     }
@@ -292,6 +409,13 @@ class _SignUpPageState extends State<SignUpPage> {
       await _authService.createAccount(
         _emailController.text.trim(),
         _passwordController.text,
+        firstName: _firstNameController.text.trim().isNotEmpty
+            ? _firstNameController.text.trim()
+            : null,
+        lastName: _lastNameController.text.trim().isNotEmpty
+            ? _lastNameController.text.trim()
+            : null,
+        profileImage: !kIsWeb && _profileImage != null ? _profileImage as io.File : null,
       );
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(

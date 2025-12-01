@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' if (dart.library.html) 'dart:html' as io;
 import '../config/api_config.dart';
 
 class ApiClient {
@@ -150,6 +152,77 @@ class ApiClient {
     );
 
     return response;
+  }
+
+  // Multipart POST for form data (used for file uploads)
+  Future<http.Response> postMultipart(
+    String endpoint, {
+    Map<String, String>? fields,
+    Map<String, dynamic>? files,
+    String? fileFieldName,
+    bool requiresAuth = false,
+  }) async {
+    if (requiresAuth) {
+      await getToken();
+    }
+
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.apiBaseUrl}$endpoint'),
+      );
+
+      // Add headers (without Content-Type for multipart)
+      final headers = <String, String>{
+        'Accept': 'application/json',
+      };
+      if (requiresAuth && _token != null) {
+        headers['Authorization'] = 'Bearer $_token';
+      }
+      request.headers.addAll(headers);
+
+      // Add text fields
+      if (fields != null) {
+        request.fields.addAll(fields);
+      }
+
+      // Add file fields (only on non-web platforms)
+      if (files != null && !kIsWeb) {
+        for (var entry in files.entries) {
+          final file = entry.value as io.File;
+          if (await file.exists()) {
+            final fileStream = http.ByteStream(file.openRead());
+            final fileLength = await file.length();
+            final fileName = file.path.split('/').last;
+            
+            final multipartFile = http.MultipartFile(
+              entry.key,
+              fileStream,
+              fileLength,
+              filename: fileName,
+            );
+            request.files.add(multipartFile);
+          }
+        }
+      }
+
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Request timeout: The server took too long to respond');
+        },
+      );
+
+      final response = await http.Response.fromStream(streamedResponse);
+      return response;
+    } on http.ClientException catch (e) {
+      throw Exception('Network error: Unable to connect to server. Please check your internet connection. ${e.message}');
+    } catch (e) {
+      if (e.toString().contains('timeout')) {
+        throw Exception('Request timeout: The server took too long to respond. Please try again.');
+      }
+      throw Exception('Request failed: ${e.toString()}');
+    }
   }
 }
 

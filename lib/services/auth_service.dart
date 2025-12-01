@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../config/api_config.dart';
 import '../models/auth_models.dart';
 import 'api_client.dart';
+import 'dart:io' if (dart.library.html) 'dart:html' as io;
 
 class AuthService {
   final ApiClient _apiClient = ApiClient();
@@ -62,17 +64,35 @@ class AuthService {
     String password, {
     String? firstName,
     String? lastName,
+    dynamic profileImage, // File on mobile, can be null on web
   }) async {
     try {
-      final request = CreateAccountRequest(
-        email: email,
-        password: password,
-        firstName: firstName,
-        lastName: lastName,
-      );
-      final response = await _apiClient.post(
+      // Prepare form fields
+      final fields = <String, String>{
+        'email': email,
+        'password': password,
+      };
+      if (firstName != null && firstName.isNotEmpty) {
+        fields['first_name'] = firstName;
+      }
+      if (lastName != null && lastName.isNotEmpty) {
+        fields['last_name'] = lastName;
+      }
+
+      // Prepare files (only on non-web platforms)
+      Map<String, dynamic>? files;
+      if (profileImage != null && !kIsWeb) {
+        files = <String, dynamic>{
+          'profile_image': profileImage,
+        };
+      }
+
+      // Use multipart POST for form data
+      final response = await _apiClient.postMultipart(
         ApiConfig.createAccountEndpoint,
-        body: request.toJson(),
+        fields: fields,
+        files: files.isNotEmpty ? files : null,
+        fileFieldName: profileImage != null ? 'profile_image' : null,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
