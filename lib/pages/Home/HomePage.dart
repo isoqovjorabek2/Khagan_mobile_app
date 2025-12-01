@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'CategoryPage.dart';
 import '../../services/product_service.dart';
+import '../../services/favorites_service.dart';
 import '../../models/product.dart';
 import '../../models/advertisement.dart';
+import '../../models/product_category.dart';
 import 'ProductDetailsPage.dart';
 
 class HomePage extends StatefulWidget {
@@ -13,12 +15,22 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+extension HomePageExtension on _HomePageState {
+  void refresh() {
+    _loadData();
+  }
+}
+
 class _HomePageState extends State<HomePage> {
   final ProductService _productService = ProductService();
+  final FavoritesService _favoritesService = FavoritesService();
   List<Product> _products = [];
   List<Advertisement> _advertisements = [];
+  List<ProductCategory> _categories = [];
+  ProductCategory? _selectedCategory;
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
+  Set<int> _favoriteIds = {};
 
   @override
   void initState() {
@@ -26,14 +38,21 @@ class _HomePageState extends State<HomePage> {
     _loadData();
   }
 
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final products = await _productService.getProducts();
+      final categories = await _productService.getCategories();
+      final products = await _productService.getProducts(
+        categoryId: _selectedCategory?.id,
+      );
       final ads = await _productService.getAdvertisements();
+      final favoriteIds = await _favoritesService.getFavoriteProductIds();
       setState(() {
+        _categories = categories;
         _products = products;
         _advertisements = ads;
+        _favoriteIds = favoriteIds.toSet();
         _isLoading = false;
       });
     } catch (e) {
@@ -52,14 +71,48 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _toggleFavorite(int productId) async {
+    await _favoritesService.toggleFavorite(productId);
+    final favoriteIds = await _favoritesService.getFavoriteProductIds();
+    setState(() {
+      _favoriteIds = favoriteIds.toSet();
+    });
+  }
+
+  Future<void> _filterByCategory(ProductCategory? category) async {
+    setState(() {
+      _selectedCategory = category;
+      _isLoading = true;
+    });
+    try {
+      final products = await _productService.getProducts(
+        categoryId: category?.id,
+      );
+      setState(() {
+        _products = products;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error filtering: $e')),
+        );
+      }
+    }
+  }
+
   void _searchProducts(String query) async {
     if (query.isEmpty) {
-      _loadData();
+      _filterByCategory(_selectedCategory);
       return;
     }
     setState(() => _isLoading = true);
     try {
-      final products = await _productService.getProducts(search: query);
+      final products = await _productService.getProducts(
+        search: query,
+        categoryId: _selectedCategory?.id,
+      );
       setState(() {
         _products = products;
         _isLoading = false;
@@ -369,11 +422,8 @@ class _HomePageState extends State<HomePage> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _chip("All", true),
-              _chip("Women", false),
-              _chip("Men", false),
-              _chip("Children", false),
-              _chip("Kids", false),
+              _buildCategoryChip(null, "All"),
+              ..._categories.map((cat) => _buildCategoryChip(cat, cat.name)),
             ],
           ),
         ),
@@ -381,33 +431,42 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  static Widget _chip(String label, bool selected) {
-    return Container(
-      margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      decoration: BoxDecoration(
-        color: selected ? Colors.orangeAccent : Colors.grey[100],
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.black,
-          fontWeight: FontWeight.w500,
+  Widget _buildCategoryChip(ProductCategory? category, String label) {
+    final bool selected = _selectedCategory?.id == category?.id;
+    return GestureDetector(
+      onTap: () => _filterByCategory(category),
+      child: Container(
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? Colors.orangeAccent : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.black,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildProductCard(Product product) {
+    final isFavorite = product.id != null && _favoriteIds.contains(product.id);
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ProductDetailsPage(productId: product.id!),
           ),
         );
+        // Refresh data when returning from product details (e.g., after adding to cart)
+        if (result == true) {
+          _loadData();
+        }
       },
       child: Container(
         decoration: BoxDecoration(
@@ -424,23 +483,47 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: product.image != null
-                  ? Image.network(product.image!,
-                      height: 160,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                            height: 160,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.image),
-                          ))
-                  : Container(
-                      height: 160,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.image),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: product.image != null
+                      ? Image.network(product.image!,
+                          height: 160,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                                height: 160,
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.image),
+                              ))
+                      : Container(
+                          height: 160,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.image),
+                        ),
+                ),
+                if (product.id != null)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: () => _toggleFavorite(product.id!),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: isFavorite ? Colors.red : Colors.black,
+                          size: 20,
+                        ),
+                      ),
                     ),
+                  ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.all(10),

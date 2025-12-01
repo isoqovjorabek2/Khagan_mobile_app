@@ -23,6 +23,10 @@ class _CartPageState extends State<CartPage> {
     _loadCart();
   }
 
+  void refresh() {
+    _loadCart();
+  }
+
   Future<void> _loadCart() async {
     setState(() => _isLoading = true);
     try {

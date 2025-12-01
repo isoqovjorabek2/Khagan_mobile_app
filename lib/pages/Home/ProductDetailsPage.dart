@@ -58,6 +58,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Product added to cart!')),
         );
+        // Return true to indicate cart was updated
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
