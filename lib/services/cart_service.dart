@@ -3,11 +3,9 @@ import '../config/api_config.dart';
 import '../models/cart.dart';
 import '../models/card.dart';
 import 'api_client.dart';
-import 'mock_data_service.dart';
 
 class CartService {
   final ApiClient _apiClient = ApiClient();
-  final MockDataService _mockDataService = MockDataService();
 
   Future<List<Cart>> getCart() async {
     try {

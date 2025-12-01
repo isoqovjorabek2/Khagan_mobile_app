@@ -4,11 +4,9 @@ import '../models/product.dart';
 import '../models/product_category.dart';
 import '../models/advertisement.dart';
 import 'api_client.dart';
-import 'mock_data_service.dart';
 
 class ProductService {
   final ApiClient _apiClient = ApiClient();
-  final MockDataService _mockDataService = MockDataService();
 
   Future<List<ProductCategory>> getCategories() async {
     try {
@@ -26,18 +24,12 @@ class ProductService {
               .map((item) => ProductCategory.fromJson(item))
               .toList();
         }
-        // Return mock data if backend returns empty
-        if (categories.isEmpty) {
-          return _mockDataService.getMockCategories();
-        }
         return categories;
       } else {
-        // Fallback to mock data on error
-        return _mockDataService.getMockCategories();
+        throw Exception('Failed to get categories: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      // Fallback to mock data on network error
-      return _mockDataService.getMockCategories();
+      throw Exception('Get categories error: $e');
     }
   }
 
@@ -77,33 +69,12 @@ class ProductService {
               .map((item) => Product.fromJson(item))
               .toList();
         }
-        // Return mock data if backend returns empty
-        if (products.isEmpty) {
-          if (search != null && search.isNotEmpty) {
-            return _mockDataService.searchProducts(search);
-          } else if (categoryId != null) {
-            return _mockDataService.getProductsByCategory(categoryId);
-          }
-          return _mockDataService.getMockProducts();
-        }
         return products;
       } else {
-        // Fallback to mock data on error
-        if (search != null && search.isNotEmpty) {
-          return _mockDataService.searchProducts(search);
-        } else if (categoryId != null) {
-          return _mockDataService.getProductsByCategory(categoryId);
-        }
-        return _mockDataService.getMockProducts();
+        throw Exception('Failed to get products: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      // Fallback to mock data on network error
-      if (search != null && search.isNotEmpty) {
-        return _mockDataService.searchProducts(search);
-      } else if (categoryId != null) {
-        return _mockDataService.getProductsByCategory(categoryId);
-      }
-      return _mockDataService.getMockProducts();
+      throw Exception('Get products error: $e');
     }
   }
 
@@ -117,19 +88,9 @@ class ProductService {
         final data = jsonDecode(response.body);
         return Product.fromJson(data);
       } else {
-        // Fallback to mock data
-        final mockProduct = _mockDataService.getProductById(id);
-        if (mockProduct != null) {
-          return mockProduct;
-        }
-        throw Exception('Failed to get product: ${response.body}');
+        throw Exception('Failed to get product: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      // Fallback to mock data on error
-      final mockProduct = _mockDataService.getProductById(id);
-      if (mockProduct != null) {
-        return mockProduct;
-      }
       throw Exception('Get product error: $e');
     }
   }
@@ -151,18 +112,12 @@ class ProductService {
               .map((item) => Advertisement.fromJson(item))
               .toList();
         }
-        // Return mock data if backend returns empty
-        if (ads.isEmpty) {
-          return _mockDataService.getMockAdvertisements();
-        }
         return ads;
       } else {
-        // Fallback to mock data on error
-        return _mockDataService.getMockAdvertisements();
+        throw Exception('Failed to get advertisements: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      // Fallback to mock data on network error
-      return _mockDataService.getMockAdvertisements();
+      throw Exception('Get advertisements error: $e');
     }
   }
 }
