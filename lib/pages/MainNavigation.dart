@@ -113,10 +113,17 @@ class HomePageContent extends StatefulWidget {
 }
 
 class _HomePageContentState extends State<HomePageContent> {
-  final GlobalKey<_HomePageState> _homePageKey = GlobalKey<_HomePageState>();
+  final GlobalKey _homePageKey = GlobalKey();
 
   void refresh() {
-    _homePageKey.currentState?.refresh();
+    final homeState = _homePageKey.currentState;
+    if (homeState != null) {
+      try {
+        (homeState as dynamic).refresh();
+      } catch (_) {
+        // Refresh method might not exist, ignore
+      }
+    }
   }
 
   @override
