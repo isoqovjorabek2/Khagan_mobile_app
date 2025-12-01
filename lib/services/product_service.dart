@@ -4,9 +4,11 @@ import '../models/product.dart';
 import '../models/product_category.dart';
 import '../models/advertisement.dart';
 import 'api_client.dart';
+import 'mock_data_service.dart';
 
 class ProductService {
   final ApiClient _apiClient = ApiClient();
+  final MockDataService _mockDataService = MockDataService();
 
   Future<List<ProductCategory>> getCategories() async {
     try {
@@ -16,19 +18,26 @@ class ProductService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        List<ProductCategory> categories = [];
         if (data is List) {
-          return data.map((item) => ProductCategory.fromJson(item)).toList();
+          categories = data.map((item) => ProductCategory.fromJson(item)).toList();
         } else if (data['results'] != null) {
-          return (data['results'] as List)
+          categories = (data['results'] as List)
               .map((item) => ProductCategory.fromJson(item))
               .toList();
         }
-        return [];
+        // Return mock data if backend returns empty
+        if (categories.isEmpty) {
+          return _mockDataService.getMockCategories();
+        }
+        return categories;
       } else {
-        throw Exception('Failed to get categories: ${response.body}');
+        // Fallback to mock data on error
+        return _mockDataService.getMockCategories();
       }
     } catch (e) {
-      throw Exception('Get categories error: $e');
+      // Fallback to mock data on network error
+      return _mockDataService.getMockCategories();
     }
   }
 
@@ -60,19 +69,41 @@ class ProductService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        List<Product> products = [];
         if (data is List) {
-          return data.map((item) => Product.fromJson(item)).toList();
+          products = data.map((item) => Product.fromJson(item)).toList();
         } else if (data['results'] != null) {
-          return (data['results'] as List)
+          products = (data['results'] as List)
               .map((item) => Product.fromJson(item))
               .toList();
         }
-        return [];
+        // Return mock data if backend returns empty
+        if (products.isEmpty) {
+          if (search != null && search.isNotEmpty) {
+            return _mockDataService.searchProducts(search);
+          } else if (categoryId != null) {
+            return _mockDataService.getProductsByCategory(categoryId);
+          }
+          return _mockDataService.getMockProducts();
+        }
+        return products;
       } else {
-        throw Exception('Failed to get products: ${response.body}');
+        // Fallback to mock data on error
+        if (search != null && search.isNotEmpty) {
+          return _mockDataService.searchProducts(search);
+        } else if (categoryId != null) {
+          return _mockDataService.getProductsByCategory(categoryId);
+        }
+        return _mockDataService.getMockProducts();
       }
     } catch (e) {
-      throw Exception('Get products error: $e');
+      // Fallback to mock data on network error
+      if (search != null && search.isNotEmpty) {
+        return _mockDataService.searchProducts(search);
+      } else if (categoryId != null) {
+        return _mockDataService.getProductsByCategory(categoryId);
+      }
+      return _mockDataService.getMockProducts();
     }
   }
 
@@ -86,9 +117,19 @@ class ProductService {
         final data = jsonDecode(response.body);
         return Product.fromJson(data);
       } else {
+        // Fallback to mock data
+        final mockProduct = _mockDataService.getProductById(id);
+        if (mockProduct != null) {
+          return mockProduct;
+        }
         throw Exception('Failed to get product: ${response.body}');
       }
     } catch (e) {
+      // Fallback to mock data on error
+      final mockProduct = _mockDataService.getProductById(id);
+      if (mockProduct != null) {
+        return mockProduct;
+      }
       throw Exception('Get product error: $e');
     }
   }
@@ -102,19 +143,26 @@ class ProductService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        List<Advertisement> ads = [];
         if (data is List) {
-          return data.map((item) => Advertisement.fromJson(item)).toList();
+          ads = data.map((item) => Advertisement.fromJson(item)).toList();
         } else if (data['results'] != null) {
-          return (data['results'] as List)
+          ads = (data['results'] as List)
               .map((item) => Advertisement.fromJson(item))
               .toList();
         }
-        return [];
+        // Return mock data if backend returns empty
+        if (ads.isEmpty) {
+          return _mockDataService.getMockAdvertisements();
+        }
+        return ads;
       } else {
-        throw Exception('Failed to get advertisements: ${response.body}');
+        // Fallback to mock data on error
+        return _mockDataService.getMockAdvertisements();
       }
     } catch (e) {
-      throw Exception('Get advertisements error: $e');
+      // Fallback to mock data on network error
+      return _mockDataService.getMockAdvertisements();
     }
   }
 }

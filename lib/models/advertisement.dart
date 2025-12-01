@@ -14,12 +14,24 @@ class Advertisement {
   });
 
   factory Advertisement.fromJson(Map<String, dynamic> json) {
+    // Handle image URL - convert relative path to full URL if needed
+    String? imageUrl;
+    if (json['image'] != null) {
+      final image = json['image'].toString();
+      if (image.startsWith('http://') || image.startsWith('https://')) {
+        imageUrl = image;
+      } else if (image.isNotEmpty) {
+        // If it's a relative path, prepend base URL
+        imageUrl = 'https://khagan.univibe.uz$image';
+      }
+    }
+
     return Advertisement(
       id: json['id'],
-      image: json['image'],
+      image: imageUrl,
       title: json['title'] ?? '',
       description: json['description'] ?? '',
-      createdAt: json['created_at'],
+      createdAt: json['created_at']?.toString(),
     );
   }
 

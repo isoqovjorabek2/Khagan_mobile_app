@@ -18,6 +18,28 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    // Handle price as both string and number
+    String? priceStr;
+    if (json['price'] != null) {
+      if (json['price'] is String) {
+        priceStr = json['price'];
+      } else if (json['price'] is num) {
+        priceStr = json['price'].toString();
+      }
+    }
+
+    // Handle image URL - convert relative path to full URL if needed
+    String? imageUrl;
+    if (json['image'] != null) {
+      final image = json['image'].toString();
+      if (image.startsWith('http://') || image.startsWith('https://')) {
+        imageUrl = image;
+      } else if (image.isNotEmpty) {
+        // If it's a relative path, prepend base URL
+        imageUrl = 'https://khagan.univibe.uz$image';
+      }
+    }
+
     return Product(
       id: json['id'],
       title: json['title'] ?? '',
@@ -25,8 +47,8 @@ class Product {
       category: json['category'] != null
           ? ProductCategory.fromJson(json['category'])
           : null,
-      price: json['price'],
-      image: json['image'],
+      price: priceStr,
+      image: imageUrl,
     );
   }
 

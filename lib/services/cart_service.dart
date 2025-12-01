@@ -3,9 +3,11 @@ import '../config/api_config.dart';
 import '../models/cart.dart';
 import '../models/card.dart';
 import 'api_client.dart';
+import 'mock_data_service.dart';
 
 class CartService {
   final ApiClient _apiClient = ApiClient();
+  final MockDataService _mockDataService = MockDataService();
 
   Future<List<Cart>> getCart() async {
     try {
@@ -16,23 +18,28 @@ class CartService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        List<Cart> cartItems = [];
         if (data is List) {
-          return data.map((item) => Cart.fromJson(item)).toList();
+          cartItems = data.map((item) => Cart.fromJson(item)).toList();
         } else if (data['results'] != null) {
-          return (data['results'] as List)
+          cartItems = (data['results'] as List)
               .map((item) => Cart.fromJson(item))
               .toList();
         } else if (data['items'] != null) {
-          return (data['items'] as List)
+          cartItems = (data['items'] as List)
               .map((item) => Cart.fromJson(item))
               .toList();
         }
-        return [];
+        // Return empty cart if backend returns empty (not mock data for cart)
+        return cartItems;
       } else {
-        throw Exception('Failed to get cart: ${response.body}');
+        // Return empty cart on error (cart requires auth, so don't show mock data)
+        return [];
       }
     } catch (e) {
-      throw Exception('Get cart error: $e');
+      // Return empty cart on network error
+      // Note: We don't return mock cart data as cart is user-specific
+      return [];
     }
   }
 
