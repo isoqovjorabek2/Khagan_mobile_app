@@ -116,26 +116,41 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
-                                child: _product!.image != null
-                                    ? Image.network(
-                                        _product!.image!,
-                                        width: double.infinity,
-                                        height: 300,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
+                              child: _product!.image != null && _product!.image!.isNotEmpty
+                                  ? Image.network(
+                                      _product!.image!,
+                                      width: double.infinity,
+                                      height: 300,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Container(
                                           height: 300,
-                                          color: Colors.grey[300],
-                                          child: const Icon(Icons.image,
-                                              size: 50),
-                                        ),
-                                      )
-                                    : Container(
+                                          color: Colors.grey[200],
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress.expectedTotalBytes != null
+                                                  ? loadingProgress.cumulativeBytesLoaded /
+                                                      loadingProgress.expectedTotalBytes!
+                                                  : null,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
                                         height: 300,
                                         color: Colors.grey[300],
-                                        child: const Icon(Icons.image, size: 50),
+                                        child: const Icon(Icons.image,
+                                            size: 50, color: Colors.grey),
                                       ),
+                                    )
+                                  : Container(
+                                      height: 300,
+                                      color: Colors.grey[300],
+                                      child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                                    ),
                               ),
                             ],
                           ),

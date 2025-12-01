@@ -280,22 +280,37 @@ class _CategoryPageState extends State<CategoryPage> {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: product.image != null
+              child: product.image != null && product.image!.isNotEmpty
                   ? Image.network(
                       product.image!,
                       height: 160,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 160,
+                          color: Colors.grey[200],
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          ),
+                        );
+                      },
                       errorBuilder: (context, error, stackTrace) => Container(
                             height: 160,
                             color: Colors.grey[300],
-                            child: const Icon(Icons.image),
+                            child: const Icon(Icons.image, color: Colors.grey),
                           ),
                     )
                   : Container(
                       height: 160,
                       color: Colors.grey[300],
-                      child: const Icon(Icons.image),
+                      child: const Icon(Icons.image, color: Colors.grey),
                     ),
             ),
             Padding(

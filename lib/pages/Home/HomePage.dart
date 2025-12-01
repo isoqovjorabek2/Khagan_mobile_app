@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'CategoryPage.dart';
 import '../../services/product_service.dart';
 import '../../services/favorites_service.dart';
+import '../../services/auth_service.dart';
 import '../../models/product.dart';
 import '../../models/advertisement.dart';
 import '../../models/product_category.dart';
@@ -24,6 +25,7 @@ extension HomePageExtension on _HomePageState {
 class _HomePageState extends State<HomePage> {
   final ProductService _productService = ProductService();
   final FavoritesService _favoritesService = FavoritesService();
+  final AuthService _authService = AuthService();
   List<Product> _products = [];
   List<Advertisement> _advertisements = [];
   List<ProductCategory> _categories = [];
@@ -31,17 +33,40 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
   Set<int> _favoriteIds = {};
+  String _userName = '';
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _searchController.addListener(() {
+      setState(() {}); // Update UI when search text changes
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      // Load user profile for name
+      try {
+        final profile = await _authService.getProfile();
+        setState(() {
+          _userName = profile.firstName ?? 'User';
+        });
+      } catch (_) {
+        // If profile fails, use default
+        setState(() {
+          _userName = 'User';
+        });
+      }
+
       final categories = await _productService.getCategories();
       final products = await _productService.getProducts(
         categoryId: _selectedCategory?.id,
@@ -102,7 +127,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _searchProducts(String query) async {
+  void _performSearch() async {
+    final query = _searchController.text.trim();
     if (query.isEmpty) {
       _filterByCategory(_selectedCategory);
       return;
@@ -143,17 +169,28 @@ class _HomePageState extends State<HomePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Hi 👋",
-                          style: TextStyle(
+                        Text(
+                          "Hi ${_userName} 👋",
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const CircleAvatar(
-                          radius: 22,
-                          backgroundImage:
-                              NetworkImage('https://via.placeholder.com/150'),
+                        FutureBuilder(
+                          future: _authService.getProfile(),
+                          builder: (context, snapshot) {
+                            final profileImage = snapshot.data?.avatar;
+                            return CircleAvatar(
+                              radius: 22,
+                              backgroundColor: Colors.grey[300],
+                              backgroundImage: profileImage != null && profileImage.isNotEmpty
+                                  ? NetworkImage(profileImage)
+                                  : null,
+                              child: profileImage == null || profileImage.isEmpty
+                                  ? const Icon(Icons.person, color: Colors.grey)
+                                  : null,
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -170,13 +207,35 @@ class _HomePageState extends State<HomePage> {
                             ),
                             child: TextField(
                               controller: _searchController,
-                              onChanged: _searchProducts,
-                              decoration: const InputDecoration(
+                              onSubmitted: (_) => _performSearch(),
+                              decoration: InputDecoration(
                                 hintText: "Search",
-                                prefixIcon: Icon(LucideIcons.search),
+                                prefixIcon: const Icon(LucideIcons.search),
+                                suffixIcon: _searchController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          _filterByCategory(_selectedCategory);
+                                        },
+                                      )
+                                    : null,
                                 border: InputBorder.none,
                               ),
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          height: 50,
+                          width: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(LucideIcons.search),
+                            onPressed: _performSearch,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -487,20 +546,37 @@ class _HomePageState extends State<HomePage> {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: product.image != null
-                      ? Image.network(product.image!,
+                  child: product.image != null && product.image!.isNotEmpty
+                      ? Image.network(
+                          product.image!,
                           height: 160,
                           width: double.infinity,
                           fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              height: 160,
+                              color: Colors.grey[200],
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
                           errorBuilder: (context, error, stackTrace) => Container(
                                 height: 160,
                                 color: Colors.grey[300],
-                                child: const Icon(Icons.image),
-                              ))
+                                child: const Icon(Icons.image, color: Colors.grey),
+                              ),
+                        )
                       : Container(
                           height: 160,
                           color: Colors.grey[300],
-                          child: const Icon(Icons.image),
+                          child: const Icon(Icons.image, color: Colors.grey),
                         ),
                 ),
                 if (product.id != null)
