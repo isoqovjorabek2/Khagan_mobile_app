@@ -36,14 +36,18 @@ class ApiClient {
     await prefs.remove('auth_token');
   }
 
-  Map<String, String> _getHeaders({bool requiresAuth = false}) {
+  Future<Map<String, String>> _getHeaders({bool requiresAuth = false}) async {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
 
-    if (requiresAuth && _token != null) {
-      headers['Authorization'] = 'Bearer $_token';
+    if (requiresAuth) {
+      // Ensure token is loaded from storage
+      final token = await getToken();
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
     }
 
     return headers;
@@ -54,20 +58,17 @@ class ApiClient {
     Map<String, String>? queryParams,
     bool requiresAuth = false,
   }) async {
-    if (requiresAuth) {
-      await getToken();
-    }
-
     var uri = Uri.parse('${ApiConfig.apiBaseUrl}$endpoint');
     if (queryParams != null && queryParams.isNotEmpty) {
       uri = uri.replace(queryParameters: queryParams);
     }
 
     try {
+      final headers = await _getHeaders(requiresAuth: requiresAuth);
       final response = await http
           .get(
             uri,
-            headers: _getHeaders(requiresAuth: requiresAuth),
+            headers: headers,
           )
           .timeout(
             const Duration(seconds: 30),
@@ -92,15 +93,12 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool requiresAuth = false,
   }) async {
-    if (requiresAuth) {
-      await getToken();
-    }
-
     try {
+      final headers = await _getHeaders(requiresAuth: requiresAuth);
       final response = await http
           .post(
             Uri.parse('${ApiConfig.apiBaseUrl}$endpoint'),
-            headers: _getHeaders(requiresAuth: requiresAuth),
+            headers: headers,
             body: body != null ? jsonEncode(body) : null,
           )
           .timeout(
@@ -125,13 +123,10 @@ class ApiClient {
     String endpoint, {
     bool requiresAuth = false,
   }) async {
-    if (requiresAuth) {
-      await getToken();
-    }
-
+    final headers = await _getHeaders(requiresAuth: requiresAuth);
     final response = await http.delete(
       Uri.parse('${ApiConfig.apiBaseUrl}$endpoint'),
-      headers: _getHeaders(requiresAuth: requiresAuth),
+      headers: headers,
     );
 
     return response;
@@ -142,13 +137,10 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool requiresAuth = false,
   }) async {
-    if (requiresAuth) {
-      await getToken();
-    }
-
+    final headers = await _getHeaders(requiresAuth: requiresAuth);
     final response = await http.put(
       Uri.parse('${ApiConfig.apiBaseUrl}$endpoint'),
-      headers: _getHeaders(requiresAuth: requiresAuth),
+      headers: headers,
       body: body != null ? jsonEncode(body) : null,
     );
 
@@ -177,8 +169,11 @@ class ApiClient {
       final headers = <String, String>{
         'Accept': 'application/json',
       };
-      if (requiresAuth && _token != null) {
-        headers['Authorization'] = 'Bearer $_token';
+      if (requiresAuth) {
+        final token = await getToken();
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
       }
       request.headers.addAll(headers);
 

@@ -12,6 +12,7 @@ class ProductService {
     try {
       final response = await _apiClient.get(
         ApiConfig.categoriesEndpoint,
+        requiresAuth: true,
       );
 
       if (response.statusCode == 200) {
@@ -42,7 +43,7 @@ class ProductService {
     try {
       final queryParams = <String, String>{};
       if (categoryId != null) {
-        queryParams['category'] = categoryId.toString();
+        queryParams['categoryId'] = categoryId.toString();
       }
       if (search != null && search.isNotEmpty) {
         queryParams['search'] = search;
@@ -57,6 +58,7 @@ class ProductService {
       final response = await _apiClient.get(
         ApiConfig.productsEndpoint,
         queryParams: queryParams,
+        requiresAuth: true,
       );
 
       if (response.statusCode == 200) {
@@ -82,6 +84,7 @@ class ProductService {
     try {
       final response = await _apiClient.get(
         '${ApiConfig.productDetailEndpoint}$id/',
+        requiresAuth: true,
       );
 
       if (response.statusCode == 200) {
@@ -99,7 +102,7 @@ class ProductService {
     try {
       final response = await _apiClient.get(
         ApiConfig.adsEndpoint,
-        requiresAuth: false,
+        requiresAuth: true,
       );
 
       if (response.statusCode == 200) {
