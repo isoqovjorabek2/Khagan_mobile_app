@@ -19,9 +19,10 @@ class Advertisement {
     if (json['image'] != null) {
       final image = json['image'].toString();
       if (image.startsWith('http://') || image.startsWith('https://')) {
-        imageUrl = image;
+        // Ensure we use https://
+        imageUrl = image.replaceFirst('http://', 'https://');
       } else if (image.isNotEmpty) {
-        // If it's a relative path, prepend base URL
+        // If it's a relative path, prepend base URL with https://
         imageUrl = 'https://khagan.univibe.uz$image';
       }
     }

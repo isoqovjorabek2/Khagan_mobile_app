@@ -155,6 +155,9 @@ class ProductService {
       } else if (response.statusCode == 403 || response.statusCode == 401) {
         // Authentication failed, use mock data as fallback
         return _mockDataService.getMockAdvertisements();
+      } else if (response.statusCode == 404) {
+        // Endpoint not found, use mock data as fallback
+        return _mockDataService.getMockAdvertisements();
       } else {
         throw Exception('Failed to get advertisements: ${response.statusCode} - ${response.body}');
       }

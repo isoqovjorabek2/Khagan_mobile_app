@@ -213,40 +213,35 @@ class _HomePageState extends State<HomePage> {
                                 prefixIcon: const Icon(LucideIcons.search),
                                 suffixIcon: _searchController.text.isNotEmpty
                                     ? IconButton(
-                                        icon: const Icon(Icons.clear),
+                                        icon: const Icon(Icons.clear, size: 20),
                                         onPressed: () {
-                                          _searchController.clear();
+                                          setState(() {
+                                            _searchController.clear();
+                                          });
                                           _filterByCategory(_selectedCategory);
                                         },
                                       )
                                     : null,
                                 border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Container(
-                          height: 50,
-                          width: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
+                        const SizedBox(width: 8),
+                        Material(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            onTap: _performSearch,
                             borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              height: 50,
+                              width: 50,
+                              alignment: Alignment.center,
+                              child: const Icon(LucideIcons.search, size: 20),
+                            ),
                           ),
-                          child: IconButton(
-                            icon: const Icon(LucideIcons.search),
-                            onPressed: _performSearch,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Container(
-                          height: 50,
-                          width: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(LucideIcons.slidersHorizontal),
                         ),
                       ],
                     ),
@@ -567,11 +562,14 @@ class _HomePageState extends State<HomePage> {
                               ),
                             );
                           },
-                          errorBuilder: (context, error, stackTrace) => Container(
-                                height: 160,
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.image, color: Colors.grey),
-                              ),
+                          errorBuilder: (context, error, stackTrace) {
+                            // Silently handle CORS and other image errors
+                            return Container(
+                              height: 160,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image, color: Colors.grey),
+                            );
+                          },
                         )
                       : Container(
                           height: 160,
