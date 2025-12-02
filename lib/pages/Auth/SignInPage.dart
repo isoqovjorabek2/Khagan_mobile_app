@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:helloworld/pages/MainNavigation.dart';
 import '../../services/auth_service.dart';
+import 'SignUpPage.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -160,7 +161,11 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        // Go to sign-up screen
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SignUpPage(),
+                          ),
+                        );
                       },
                       child: const Text(
                         "Sign up now",
