@@ -4,6 +4,18 @@ import '../models/cart.dart';
 import '../models/card.dart';
 import 'api_client.dart';
 
+class OrderResult {
+  final bool success;
+  final String? orderCode;
+  final String? message;
+
+  OrderResult({
+    required this.success,
+    this.orderCode,
+    this.message,
+  });
+}
+
 class CartService {
   final ApiClient _apiClient = ApiClient();
 
@@ -76,14 +88,30 @@ class CartService {
     }
   }
 
-  Future<bool> orderCart() async {
+  Future<OrderResult> orderCart() async {
     try {
       final response = await _apiClient.post(
         ApiConfig.orderCartEndpoint,
         requiresAuth: true,
       );
 
-      return response.statusCode == 200 || response.statusCode == 201;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map<String, dynamic>) {
+            return OrderResult(
+              success: true,
+              orderCode: data['order_code']?.toString(),
+              message: data['message']?.toString(),
+            );
+          }
+        } catch (_) {
+          // Ignore parse errors and just mark success
+        }
+        return OrderResult(success: true);
+      } else {
+        throw Exception('Order cart failed: ${response.body}');
+      }
     } catch (e) {
       throw Exception('Order cart error: $e');
     }
@@ -143,4 +171,3 @@ class CartService {
     }
   }
 }
-

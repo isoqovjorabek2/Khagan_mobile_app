@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/cart.dart';
 import '../../services/cart_service.dart';
+import '../Payment/CheckoutPage.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -221,12 +222,13 @@ class _CartPageState extends State<CartPage> {
                               Expanded(
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    setState(() {
-                                      confirming = true;
-                                      deleting = false;
-                                      renting = false;
-                                    });
-                                    _showBottomSheet(context);
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => CheckoutPage(
+                                          total: total,
+                                        ),
+                                      ),
+                                    );
                                   },
                                   style: _buttonStyle(),
                                   child: const Text("Confirm"),
@@ -369,10 +371,16 @@ class _CartPageState extends State<CartPage> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                final success = await _cartService.orderCart();
-                if (success && mounted) {
+                final result = await _cartService.orderCart();
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Order confirmed!')),
+                    SnackBar(
+                      content: Text(
+                        result.message != null
+                            ? 'Order confirmed! ${result.message}'
+                            : 'Order confirmed!',
+                      ),
+                    ),
                   );
                   await _loadCart();
                 }
@@ -420,10 +428,16 @@ class _CartPageState extends State<CartPage> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                final success = await _cartService.orderCart();
-                if (success && mounted) {
+                final result = await _cartService.orderCart();
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Payment processed!')),
+                    SnackBar(
+                      content: Text(
+                        result.message != null
+                            ? 'Payment processed! ${result.message}'
+                            : 'Payment processed!',
+                      ),
+                    ),
                   );
                   await _loadCart();
                 }

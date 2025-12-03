@@ -1,8 +1,108 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-class CheckoutPage extends StatelessWidget {
-  const CheckoutPage({super.key});
+import '../../models/card.dart' as payment_model;
+import '../../services/cart_service.dart';
+import 'AddCardPage.dart';
+import 'PaymentCompletePage.dart';
+
+class CheckoutPage extends StatefulWidget {
+  final double? total;
+
+  const CheckoutPage({super.key, this.total});
+
+  @override
+  State<CheckoutPage> createState() => _CheckoutPageState();
+}
+
+class _CheckoutPageState extends State<CheckoutPage> {
+  final CartService _cartService = CartService();
+  List<payment_model.Card> _cards = [];
+  bool _isLoadingCards = true;
+  bool _isProcessingPayment = false;
+  int? _selectedCardId;
+
+  double get _billing => (widget.total ?? 160.25) * 0.38;
+  double get _shipping => 20.13;
+  double get _tax => 15.48;
+  double get _total => widget.total ?? 160.25;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCards();
+  }
+
+  Future<void> _loadCards() async {
+    setState(() => _isLoadingCards = true);
+    try {
+      final cards = await _cartService.getCards();
+      setState(() {
+        _cards = cards;
+        _selectedCardId = cards.isNotEmpty ? _cardKey(cards.first) : null;
+        _isLoadingCards = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingCards = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load cards: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _onAddCard() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const AddCardPage(),
+      ),
+    );
+    if (added == true) {
+      await _loadCards();
+    }
+  }
+
+  Future<void> _onPay() async {
+    if (_selectedCardId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a card first')),
+      );
+      return;
+    }
+
+    setState(() => _isProcessingPayment = true);
+    try {
+      final orderResult = await _cartService.orderCart();
+      final orderCode =
+          orderResult.orderCode ?? '#${Random().nextInt(900000) + 100000}';
+      if (mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PaymentCompletePage(orderCode: orderCode),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment failed: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessingPayment = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,13 +118,13 @@ class CheckoutPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: IconButton(
-            icon: Icon(LucideIcons.arrowLeft, size: 20),
+            icon: const Icon(LucideIcons.arrowLeft, size: 20, color: Colors.black),
             onPressed: () => Navigator.pop(context),
           ),
         ),
         centerTitle: true,
         title: const Text(
-          "Checkout",
+          'Checkout',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.w600,
@@ -41,16 +141,14 @@ class CheckoutPage extends StatelessWidget {
             const SizedBox(height: 20),
             _priceSection(),
             const SizedBox(height: 25),
-            _paymentMethodCard(context), // Pass context for navigation
+            _paymentMethodCard(),
             const SizedBox(height: 35),
-            _nextButton(context),
+            _payButton(),
           ],
         ),
       ),
     );
   }
-
-  // ================= TOP PAYMENT METHODS BOX =================
 
   Widget _paymentMethods() {
     return Container(
@@ -61,31 +159,29 @@ class CheckoutPage extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Image.asset("lib/assets/mastercard.png", width: 55),
-          const SizedBox(width: 160),
-          Image.asset("lib/assets/paypal.png", height: 35),
+          Image.asset('lib/assets/mastercard.png', width: 55),
+          const SizedBox(width: 120),
+          Image.asset('lib/assets/paypal.png', height: 35),
           const Spacer(),
-          Image.asset("lib/assets/applepay.png", height: 28),
+          Image.asset('lib/assets/applepay.png', height: 28),
         ],
       ),
     );
   }
 
-  // ================= PRICE DETAILS =================
-
   Widget _priceSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _line("Billing", "60.24"),
-        _line("Shipping", "20.13"),
-        _line("Tax (9.52%)", "15.48"),
+        _line('Billing', _billing.toStringAsFixed(2)),
+        _line('Shipping', _shipping.toStringAsFixed(2)),
+        _line('Tax (9.52%)', _tax.toStringAsFixed(2)),
         const SizedBox(height: 20),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              "Total",
+              'Total',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 20,
@@ -97,9 +193,9 @@ class CheckoutPage extends StatelessWidget {
                 color: Colors.orange.shade300,
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: const Text(
-                "\$160.25",
-                style: TextStyle(
+              child: Text(
+                '\$${_total.toStringAsFixed(2)}',
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
@@ -117,19 +213,14 @@ class CheckoutPage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 15)),
-          Text(value,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+          Text(label, style: TextStyle(color: Colors.grey.shade700, fontSize: 15)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
         ],
       ),
     );
   }
 
-  // ================= PAYMENT METHOD BOX =================
-
-  Widget _paymentMethodCard(BuildContext context) {
+  Widget _paymentMethodCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -139,16 +230,15 @@ class CheckoutPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // HEADER
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                "Payment Method",
+                'Payment Method',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               Text(
-                "Edit",
+                'Edit',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: Colors.orange.shade400,
@@ -156,28 +246,34 @@ class CheckoutPage extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 18),
-
-          // EMPTY CARD BOX
-          Container(
-            height: 150,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: Colors.grey.shade100,
+          if (_isLoadingCards)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (_cards.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: Colors.grey.shade100,
+              ),
+              child: const Text(
+                'No cards yet. Please add a card.',
+                style: TextStyle(color: Colors.black54),
+              ),
+            )
+          else
+            Column(
+              children: _cards.map((card) => _cardTile(card)).toList(),
             ),
-          ),
-
           const SizedBox(height: 16),
-
-          // ADD CARD BUTTON
           GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddCardPage()),
-              );
-            },
+            onTap: _onAddCard,
             child: Container(
               height: 52,
               decoration: BoxDecoration(
@@ -187,10 +283,10 @@ class CheckoutPage extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(LucideIcons.plus, size: 20),
+                  const Icon(LucideIcons.plus, size: 20, color: Colors.black),
                   const SizedBox(width: 8),
                   const Text(
-                    "Add Your Card",
+                    'Add Your Card',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 16,
@@ -205,9 +301,99 @@ class CheckoutPage extends StatelessWidget {
     );
   }
 
-  // ================= NEXT BUTTON =================
+  Widget _cardTile(payment_model.Card card) {
+    final cardKey = _cardKey(card);
+    final isSelected = _selectedCardId == cardKey;
+    final masked = card.cardNumber.length >= 4
+        ? '•••• •••• •••• ${card.cardNumber.substring(card.cardNumber.length - 4)}'
+        : card.cardNumber;
 
-  Widget _nextButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCardId = _cardKey(card)),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.black : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? Colors.black : Colors.grey.shade300,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(isSelected ? 0.1 : 0.8),
+                shape: BoxShape.circle,
+              ),
+              child: isSelected
+                  ? const Icon(Icons.radio_button_checked, color: Colors.white)
+                  : const Icon(Icons.radio_button_off, color: Colors.black54),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    card.cardName,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        masked,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white70 : Colors.black54,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        card.expiryDate,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white70 : Colors.black54,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _cardBrandIcon(card.cardNumber, isSelected),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cardBrandIcon(String number, bool isSelected) {
+    final color = isSelected ? Colors.white : Colors.orange.shade400;
+    if (number.startsWith('4')) {
+      return Icon(Icons.credit_card, color: color, size: 28);
+    }
+    if (number.startsWith('5')) {
+      return Image.asset('lib/assets/mastercard.png', width: 36);
+    }
+    return Icon(Icons.payment, color: color, size: 28);
+  }
+
+  int _cardKey(payment_model.Card card) {
+    return card.id ?? card.hashCode;
+  }
+
+  Widget _payButton() {
     return SizedBox(
       width: double.infinity,
       height: 58,
@@ -218,107 +404,24 @@ class CheckoutPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
           ),
         ),
-        onPressed: () {
-          Navigator.pushNamed(context, "/checkoutStep2");
-        },
-        child: const Text(
-          "Next",
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ================= NEW ADD CARD PAGE =================
-
-class AddCardPage extends StatelessWidget {
-  const AddCardPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Add Card"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(18.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Enter your card details",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "Card Number",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+        onPressed: _isProcessingPayment ? null : _onPay,
+        child: _isProcessingPayment
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text(
+                'Use this Card',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  color: Colors.white,
                 ),
               ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: "Expiry Date",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    keyboardType: TextInputType.datetime,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: "CVV",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                    obscureText: true,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: () {
-                  // TODO: Save card logic
-                  Navigator.pop(context);
-                },
-                child: const Text(
-                  "Save Card",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -23,7 +23,7 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _obscurePassword = true;
   bool _obscureRePassword = true;
   bool _isLoading = false;
-  dynamic _profileImage; // File on mobile, can be null on web
+  dynamic _profileImage; 
 
   @override
   Widget build(BuildContext context) {
